@@ -1,5 +1,6 @@
 // Extension-surface checks: skills/, commands/, and local settings gitignore hygiene.
 // Conventions come from adapters/tools.js (official docs cited there) — never hard-code tool facts.
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { TOOLS } from '../../adapters/tools.js';
@@ -15,28 +16,75 @@ const COMMAND_BODY_WARN_LINES = 40;
 export function checkExtensions(repo, findings) {
   const seenSkillRoots = new Set();
   const seenCommandRoots = new Set();
+  const skills = [];
 
   for (const tool of TOOLS) {
     for (const rel of tool.skillsDirs || []) {
       if (seenSkillRoots.has(rel)) continue;
       seenSkillRoots.add(rel);
-      checkSkillsDir(repo, rel, tool, findings);
+      checkSkillsDir(repo, rel, tool, findings, skills);
     }
     if (tool.commandsDir && !seenCommandRoots.has(tool.commandsDir)) {
       seenCommandRoots.add(tool.commandsDir);
-      checkCommandsDir(repo, tool.commandsDir, findings);
+      checkCommandsDir(repo, tool.commandsDir, tool, findings);
     }
   }
 
+  checkSkillCollisions(skills, findings);
   checkLocalSettingsGitignore(repo, findings);
   checkSoftLayering(repo, findings);
 }
 
-function checkSkillsDir(repo, relDir, tool, findings) {
+/**
+ * Skills live in more than one directory (a tool-specific one and the shared `.agents/skills`),
+ * so the same skill gets copied. Copies drift, and two skills claiming one name make it luck
+ * which the agent loads. Both are invisible until an agent behaves differently in one tool.
+ * @param {{folder: string, rel: string, name: string|null, hash: string}[]} skills
+ */
+function checkSkillCollisions(skills, findings) {
+  const byFolder = new Map();
+  for (const s of skills) {
+    if (!byFolder.has(s.folder)) byFolder.set(s.folder, []);
+    byFolder.get(s.folder).push(s);
+  }
+  for (const [folder, copies] of byFolder) {
+    if (copies.length < 2) continue;
+    const hashes = new Set(copies.map((c) => c.hash));
+    if (hashes.size > 1) {
+      findings.warn(
+        'Config',
+        `skill "${folder}" exists in ${copies.length} directories with different content (${copies.map((c) => c.rel).join(', ')}) — the copies have drifted`,
+        copies[0].rel,
+        'APX-CFG-036',
+      );
+    } else {
+      findings.pass('Config', `skill "${folder}" is mirrored identically across ${copies.length} directories`, copies[0].rel);
+    }
+  }
+
+  const byName = new Map();
+  for (const s of skills) {
+    if (!s.name) continue;
+    if (!byName.has(s.name)) byName.set(s.name, []);
+    byName.get(s.name).push(s);
+  }
+  for (const [name, claimants] of byName) {
+    const folders = new Set(claimants.map((c) => c.folder));
+    if (folders.size < 2) continue;
+    findings.warn(
+      'Config',
+      `skill name "${name}" is claimed by ${folders.size} different skills (${claimants.map((c) => c.rel).join(', ')}) — which one loads is not defined`,
+      claimants[0].rel,
+      'APX-CFG-037',
+    );
+  }
+}
+
+function checkSkillsDir(repo, relDir, tool, findings, skills = []) {
   const dir = path.join(repo, relDir);
   if (!isDir(dir)) return;
   if (isSymlink(dir) && !isInsideRepo(repo, dir)) {
-    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping skills checks (CWE-59)`, relDir);
+    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping skills checks (CWE-59)`, relDir, 'APX-CFG-017');
     return;
   }
 
@@ -58,7 +106,7 @@ function checkSkillsDir(repo, relDir, tool, findings) {
       try {
         isDirectory = fs.statSync(full).isDirectory();
       } catch {
-        findings.fail('Config', `dangling symlink: ${path.join(relDir, e.name)}`, path.join(relDir, e.name));
+        findings.fail('Config', `dangling symlink: ${path.join(relDir, e.name)}`, path.join(relDir, e.name), 'APX-CFG-018');
         continue;
       }
     }
@@ -68,27 +116,36 @@ function checkSkillsDir(repo, relDir, tool, findings) {
     const skillPath = path.join(full, skillFile);
     const skillRel = path.join(relDir, e.name, skillFile);
     if (!isFile(skillPath)) {
-      findings.fail('Config', `skill directory missing ${skillFile}: ${path.join(relDir, e.name)}`, path.join(relDir, e.name));
+      findings.fail('Config', `skill directory missing ${skillFile}: ${path.join(relDir, e.name)}`, path.join(relDir, e.name), 'APX-CFG-019');
       continue;
     }
 
     const content = readText(skillPath);
+    // Record every skill so cross-directory drift and name collisions can be seen afterwards.
+    // Whitespace-insensitive: a copy that differs only in trailing blank lines has not drifted.
+    skills.push({
+      folder: e.name,
+      rel: skillRel,
+      name: null,
+      hash: crypto.createHash('sha256').update(content.replace(/\s+/g, ' ').trim()).digest('hex'),
+    });
     const fm = parseFrontmatter(content);
     if (!fm) {
-      findings.warn('Config', `${skillRel} has no YAML frontmatter — add description (and name) so the agent can match it`, skillRel);
+      findings.warn('Config', `${skillRel} has no YAML frontmatter — add description (and name) so the agent can match it`, skillRel, 'APX-CFG-020');
       continue;
     }
     const desc = (fm.description || '').trim();
     if (!desc) {
-      findings.warn('Config', `${skillRel} frontmatter is missing a non-empty description`, skillRel);
+      findings.warn('Config', `${skillRel} frontmatter is missing a non-empty description`, skillRel, 'APX-CFG-021');
     }
     const name = (fm.name || '').trim();
+    skills[skills.length - 1].name = name || null;
     if (name && name !== e.name) {
       findings.warn(
         'Config',
         `${skillRel} frontmatter name "${name}" does not match directory "${e.name}"`,
         skillRel,
-      );
+      'APX-CFG-022');
     }
     if (desc && (!name || name === e.name)) {
       findings.pass('Config', `skill ok: ${path.join(relDir, e.name)}`, skillRel);
@@ -100,11 +157,11 @@ function checkSkillsDir(repo, relDir, tool, findings) {
   }
 }
 
-function checkCommandsDir(repo, relDir, findings) {
+function checkCommandsDir(repo, relDir, tool, findings) {
   const dir = path.join(repo, relDir);
   if (!isDir(dir)) return;
   if (isSymlink(dir) && !isInsideRepo(repo, dir)) {
-    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping commands checks (CWE-59)`, relDir);
+    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping commands checks (CWE-59)`, relDir, 'APX-CFG-023');
     return;
   }
 
@@ -122,25 +179,37 @@ function checkCommandsDir(repo, relDir, findings) {
     const content = readText(full);
     const fm = parseFrontmatter(content);
     if (!fm) {
-      findings.warn('Config', `${rel} has no YAML frontmatter — add a description for the slash command`, rel);
+      findings.warn('Config', `${rel} has no YAML frontmatter — add a description for the slash command`, rel, 'APX-CFG-024');
       continue;
     }
     if (!(fm.description || '').trim()) {
-      findings.warn('Config', `${rel} frontmatter is missing a non-empty description`, rel);
+      findings.warn('Config', `${rel} frontmatter is missing a non-empty description`, rel, 'APX-CFG-025');
     }
     if (fm['allowed-tools'] != null || fm.allowed_tools != null) {
       const raw = fm['allowed-tools'] ?? fm.allowed_tools;
       if (typeof raw === 'string' && raw.trim() && /:\s*$/.test(raw.trim())) {
-        findings.warn('Config', `${rel} allowed-tools looks truncated or invalid`, rel);
+        findings.warn('Config', `${rel} allowed-tools looks truncated or invalid`, rel, 'APX-CFG-026');
       }
     }
+    // A command that reads arguments but never advertises them leaves the picker blank.
+    const placeholder = tool.commandArgPlaceholder;
+    const declaresHint = (tool.commandFrontmatter || []).includes('argument-hint');
+    if (placeholder && declaresHint && placeholder.test(content) && !(fm['argument-hint'] || '').trim()) {
+      findings.warn(
+        'Config',
+        `${rel} reads arguments but declares no argument-hint — the command picker shows no usage`,
+        rel,
+        'APX-CFG-038',
+      );
+    }
+
     const bodyLines = bodyLineCount(content);
     if (bodyLines > COMMAND_BODY_WARN_LINES) {
       findings.warn(
         'Config',
         `${rel} body is ${bodyLines} lines — slash commands should stay thin entry points (method belongs in a skill or AGENTS.md)`,
         rel,
-      );
+      'APX-CFG-027');
     } else if ((fm.description || '').trim()) {
       findings.pass('Config', `command ok: ${rel}`, rel);
     }
@@ -160,7 +229,7 @@ function checkLocalSettingsGitignore(repo, findings) {
       'Config',
       `${target} is not covered by .gitignore — local Claude settings/permissions can leak into commits`,
       target,
-    );
+    'APX-CFG-028');
   } else if (ignored === true) {
     findings.pass('Config', `${target} is gitignored (or would be)`, target);
   }
@@ -198,7 +267,7 @@ function checkSoftLayering(repo, findings) {
       'Config',
       `AGENTS.md is ${lines} lines while ${skillCount} skill package(s) exist — move on-demand workflows into skills so always-on instructions stay lean`,
       'AGENTS.md',
-    );
+    'APX-CFG-029');
   }
 }
 

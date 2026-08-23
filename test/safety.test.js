@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runChecks, run } from '../src/cli.js';
+import { TOOLS } from '../adapters/tools.js';
 
 // Snapshot every file under dir as path → content, so we can prove nothing changed.
 function snapshot(dir) {
@@ -94,4 +95,17 @@ test('only upgrade.js may spawn processes (opt-in network surface)', () => {
     }
   }
   assert.deepEqual(offenders, [], `spawn/exec must stay in src/upgrade.js only; found: ${offenders.join(', ')}`);
+});
+
+// AGENTS.md rule: adapters/tools.js is the authority for every per-tool convention. If the CLI
+// names a bridge file itself, adding a new import-or-symlink tool silently writes the wrong file.
+test('bridge facts live in the adapter table, never in the CLI', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  for (const tool of TOOLS.filter((t) => t.bridge === 'import-or-symlink')) {
+    assert.ok(tool.bridgeFile, `${tool.id}: adapter must declare bridgeFile`);
+    assert.match(String(tool.importLine), /AGENTS\.md$/, `${tool.id}: adapter must declare importLine`);
+  }
+  const cli = fs.readFileSync(path.join(root, 'src', 'cli.js'), 'utf8');
+  const leaked = TOOLS.map((t) => t.bridgeFile).filter((f) => f && cli.includes(`'${f}'`));
+  assert.deepEqual(leaked, [], 'src/cli.js must read bridge file names from adapters/tools.js');
 });

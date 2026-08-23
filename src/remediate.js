@@ -1,6 +1,24 @@
 // Map warn/fail findings to concrete remediation steps for the report UI.
-// Match on category + message pattern; keep tips short and actionable.
+// Prefer the stable rule ID; fall back to message patterns for rules that predate the registry.
+// Keep tips short and actionable.
 import { FAIL, WARN } from './findings.js';
+
+const TIPS_BY_ID = {
+  'APX-SEC-002': 'Move the value into your environment and reference it (`"${VAR_NAME}"`), then rotate the committed credential.',
+  'APX-CFG-036': 'Make one copy the source and symlink or delete the other — two editable copies drift again.',
+  'APX-CFG-037': 'Rename one skill so each name resolves to exactly one skill.',
+  'APX-CFG-038': 'Add an `argument-hint:` line to the frontmatter describing what the command expects.',
+  'APX-CFG-030': 'Pin the MCP server to a released version (`package@1.2.3`) so a new publish cannot change what runs.',
+  'APX-CFG-031': 'Use the https endpoint, or keep the server on localhost — plain http exposes the token in transit.',
+  'APX-CFG-032': 'Remove `defaultMode` (or set an asking mode) and grant specific tools instead of disabling every prompt.',
+  'APX-CFG-033': 'Replace the wildcard with the commands you actually run, e.g. `Bash(npm run test:*)`.',
+  'APX-CFG-034': 'Drop the flag from the committed file. If a CI job genuinely needs it, scope it to that job and say why.',
+  'APX-RUL-018': 'Rename the command in AGENTS.md to the script that exists, or restore the script — an agent copies this line verbatim.',
+  'APX-RUL-019': 'Update AGENTS.md to the package manager the lockfile proves, or switch the repo and delete the stale lockfile.',
+  'APX-RUL-020': 'Either drop the dependency or drop the claim — a rule the repo already breaks trains agents to ignore the file.',
+  'APX-RUL-021': 'Point the boundary at the path that exists now, or remove the rule if the directory is gone.',
+  'APX-CFG-035': 'Vendor the script into the repo (reviewable, pinned) and run it from there instead of piping a URL into a shell.',
+};
 
 const TIPS = [
   {
@@ -160,6 +178,7 @@ const TIPS = [
 /** @returns {string|null} remediation tip, or null if none matched */
 export function tipForFinding(finding) {
   if (finding.severity !== WARN && finding.severity !== FAIL) return null;
+  if (finding.id && TIPS_BY_ID[finding.id]) return TIPS_BY_ID[finding.id];
   for (const { re, tip } of TIPS) {
     if (re.test(finding.message)) return tip;
   }

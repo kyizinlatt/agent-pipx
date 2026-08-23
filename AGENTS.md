@@ -18,7 +18,9 @@ Package manager: npm.
 ## Repository layout
 
 - `bin/agent-pipx.js` → `src/cli.js` (CLI entry)
-- `src/checks/` — Secrets / Config / Rules / Styles / Environment (+ protocol & extensions)
+- `src/checks/` — Secrets / Config / Rules / Styles / Environment (+ protocol, extensions, claims,
+  security)
+- `src/rules-registry.js` — the append-only rule-ID catalogue every warn/fail cites
 - `adapters/tools.js` — per-tool conventions (docs-cited; single authority)
 - `templates/` — `init` scaffolds; `project-template/` — harness seed files
 - `claude-harness/` — optional Claude Code-only hooks, commands, agents
@@ -38,6 +40,9 @@ Package manager: npm.
   tool's official docs. Update it here, never hard-code tool facts in the checks.
 - Findings are advisory data, not enforcement: `fail` = mechanically broken, `warn` = judgement
   needed, `pass` = verified. Exit codes 0/1/2 must stay stable (CI depends on them).
+- Every warn/fail cites a rule ID from `src/rules-registry.js`, and the registry is append-only:
+  never renumber, reuse, or delete an ID — a baseline and a code-scanning dismissal both key on it.
+  A new rule ships as a `warn`; promoting one to `fail` breaks existing CI and waits for a major.
 - Every new check needs a test in `test/` that builds a synthetic repo and asserts the finding.
 - Never commit anything private (personal names, machine paths, private repo names) — this repo
   is public. Run the grep gate before shipping.

@@ -4,28 +4,14 @@
 // reported as manual, never auto-rewritten.
 //
 // Writes never follow symlinks (CWE-59): only regular files whose realpath stays inside the repo.
-import fs from 'node:fs';
 import path from 'node:path';
-import { agentsMdPath } from './ssot.js';
-import { assertInsideRepo, exists, isRegularFile, isSymlink, readText } from './detect.js';
+import { agentsMdPath, IMPORTS_AGENTS } from './ssot.js';
+import { isRegularFile, readText, sameFile } from './detect.js';
+import { writeRepoFile } from './safe-write.js';
+import { appendBlock, hasBlock } from './managed-block.js';
+import { TOOLS } from '../adapters/tools.js';
 
 const IMPORT_TILDE = /^@~\/.*$/m;
-
-/** Write `content` to `abs` only if the path is a regular file (or new) inside `repo`. */
-function writeRepoFile(repo, abs, content) {
-  if (isSymlink(abs)) {
-    throw new Error(`${path.basename(abs)} is a symlink — refusing to write through it`);
-  }
-  if (exists(abs) && !isRegularFile(abs)) {
-    throw new Error(`refusing to write non-regular file: ${path.basename(abs)}`);
-  }
-  if (exists(abs)) {
-    assertInsideRepo(repo, abs);
-  } else {
-    assertInsideRepo(repo, path.dirname(abs));
-  }
-  fs.writeFileSync(abs, content);
-}
 
 // Each fixer: { detect(repo) -> {file, describe, apply()} | null }. Add more over time.
 function fixers(repo) {
@@ -46,6 +32,29 @@ function fixers(repo) {
           // Read→write backup (not copyFileSync) so a symlink .bak cannot redirect the copy.
           writeRepoFile(repo, gemini + '.bak', content);
           writeRepoFile(repo, gemini, fixed);
+        },
+      });
+    }
+  }
+
+  // A bridge file that carries its own rules instead of importing AGENTS.md is the most common
+  // finding, and until now the only fix was manual. Appending a managed block adds the import
+  // without rewriting, reordering, or removing anything the user wrote.
+  const agents = agentsMdPath(repo);
+  if (agents) {
+    for (const tool of TOOLS.filter((t) => t.bridge === 'import-or-symlink')) {
+      const { bridgeFile, importLine } = tool;
+      if (!bridgeFile || !importLine) continue;
+      const abs = path.join(repo, bridgeFile);
+      if (!isRegularFile(abs) || sameFile(abs, agents)) continue;
+      const content = readText(abs);
+      if (IMPORTS_AGENTS.test(content) || hasBlock(content)) continue;
+      list.push({
+        file: bridgeFile,
+        describe: `append a managed block importing AGENTS.md (${tool.name}) — existing content untouched`,
+        apply() {
+          writeRepoFile(repo, `${abs}.bak`, content);
+          writeRepoFile(repo, abs, appendBlock(content, importLine));
         },
       });
     }

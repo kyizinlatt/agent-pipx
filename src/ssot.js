@@ -3,6 +3,7 @@
 import path from 'node:path';
 import { SSOT } from '../adapters/tools.js';
 import { assertInsideRepo, exists, isFile, isDir, isRegularFile, isSymlink, readText, sameFile, walk } from './detect.js';
+import { countBlocks } from './managed-block.js';
 
 export function agentsMdPath(repo) {
   const p = path.join(repo, SSOT);
@@ -20,7 +21,7 @@ export function agentsMdPath(repo) {
 }
 
 // Relative (or ~) @-import of AGENTS.md — not an absolute filesystem path.
-const IMPORTS_AGENTS = /^@\S*AGENTS\.md\s*$/m;
+export const IMPORTS_AGENTS = /^@\S*AGENTS\.md\s*$/m;
 const IMPORTS_AGENTS_ABSOLUTE = /^@\/\S*AGENTS\.md\s*$/m;
 // A tilde import — valid in Claude, but NOT resolvable by Gemini.
 const IMPORT_TILDE = /^@~\//m;
@@ -38,7 +39,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${tool.name} has .github/copilot-instructions.md but no AGENTS.md SSOT — rules live only in the Copilot file`,
         '.github/copilot-instructions.md',
-      );
+      'APX-CFG-002');
     }
     return;
   }
@@ -56,7 +57,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} uses an @~/… import, which ${tool.name} cannot resolve (no ~ expansion) — rules never load; use a relative/absolute path or a symlink`,
         rel,
-      );
+      'APX-CFG-003');
       continue;
     }
 
@@ -66,8 +67,17 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} is present but there is no AGENTS.md to bridge to`,
         rel,
-      );
+      'APX-CFG-004');
       continue;
+    }
+
+    if (countBlocks(content) > 1) {
+      findings.warn(
+        'Config',
+        `${rel} has ${countBlocks(content)} agent-pipx managed blocks — merge them into one so a refresh updates the right region`,
+        rel,
+        'APX-CFG-039',
+      );
     }
 
     if (sameFile(abs, agents)) {
@@ -77,7 +87,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} @-imports AGENTS.md via an absolute path — bridge should point at this repo's SSOT (@AGENTS.md or @./AGENTS.md)`,
         rel,
-      );
+      'APX-CFG-005');
     } else if (IMPORTS_AGENTS.test(content)) {
       findings.pass('Config', `${rel} imports AGENTS.md via @ — bridged to SSOT`, rel);
     } else {
@@ -85,7 +95,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} does not @-import or symlink AGENTS.md — rules may be duplicated and drift (${tool.name})`,
         rel,
-      );
+      'APX-CFG-006');
     }
   }
 }
@@ -101,12 +111,12 @@ function validateCursorRules(repo, findings) {
       const content = readText(f);
       const first = (content.split('\n')[0] ?? '');
       if (!/^---\s*$/.test(first)) {
-        findings.warn('Config', `${rel} is a .mdc rule with no frontmatter — add description/globs/alwaysApply`, rel);
+        findings.warn('Config', `${rel} is a .mdc rule with no frontmatter — add description/globs/alwaysApply`, rel, 'APX-CFG-007');
       } else {
         findings.pass('Config', `${rel} is a valid Cursor rule`, rel);
       }
     } else if (f.endsWith('.md')) {
-      findings.warn('Config', `${rel} is a plain .md in .cursor/rules — Cursor ignores it (use .mdc)`, rel);
+      findings.warn('Config', `${rel} is a plain .md in .cursor/rules — Cursor ignores it (use .mdc)`, rel, 'APX-CFG-008');
     }
   }
 }

@@ -109,3 +109,9 @@ test('quality gate: git repo with a CI workflow → passes', () => {
   assert.ok(has(f, 'pass', /automated quality gate present/), 'gate detected');
   assert.ok(!has(f, WARN, /no CI workflow/), 'no false warning');
 });
+
+test('quality gate: linked worktree/submodule (.git is a file) is still a repo', () => {
+  const repo = mkrepo({ 'AGENTS.md': FULL_AGENTS, '.git': 'gitdir: /elsewhere/.git/worktrees/wt\n' });
+  const f = runChecks(repo);
+  assert.ok(has(f, WARN, /no CI workflow or pre-commit/), 'gate must be evaluated, not skipped');
+});

@@ -57,7 +57,7 @@ export function checkProtocolSignals(content, findings) {
       'Rules',
       `AGENTS.md tracked-findings section is missing recommended signal(s): ${missing.join('; ')}`,
       'AGENTS.md',
-    );
+    'APX-RUL-010');
   } else {
     findings.pass('Rules', 'AGENTS.md tracked-findings protocol signals present', 'AGENTS.md');
   }
@@ -89,7 +89,7 @@ export function checkProtocolArtifacts(repo, agentsContent, findings) {
         'Rules',
         `progress log present (${progressFiles[0]}) but AGENTS.md does not document ledger-vs-progress roles — agents may treat Progress as status`,
         progressFiles[0],
-      );
+      'APX-RUL-011');
     }
     for (const rel of progressFiles) {
       const text = readText(path.join(repo, rel));
@@ -99,7 +99,7 @@ export function checkProtocolArtifacts(repo, agentsContent, findings) {
           'Rules',
           `${rel} is ${lines} lines — add an archive/rotation note (or split) so Progress stays scannable`,
           rel,
-        );
+        'APX-RUL-012');
       }
     }
   } else if (claimsProgress) {
@@ -107,7 +107,7 @@ export function checkProtocolArtifacts(repo, agentsContent, findings) {
       'Rules',
       'AGENTS.md references a progress log but no PROGRESS-like file was found',
       'AGENTS.md',
-    );
+    'APX-RUL-013');
   }
 
   if (claimsProtocol && findingDocs.length === 0 && !progressFiles.length) {
@@ -120,7 +120,7 @@ export function checkProtocolArtifacts(repo, agentsContent, findings) {
           'Rules',
           'AGENTS.md points at a findings/review document but none with ledger-like states was found',
           'AGENTS.md',
-        );
+        'APX-RUL-014');
       }
     }
   } else if (claimsProtocol && findingDocs.length === 0 && /docs\/|\.claude\/review/i.test(content)) {
@@ -128,7 +128,7 @@ export function checkProtocolArtifacts(repo, agentsContent, findings) {
       'Rules',
       'AGENTS.md points at a findings/review document but none with ledger-like states was found',
       'AGENTS.md',
-    );
+    'APX-RUL-014');
   }
 
   if (planDirs.length || claimsPlanPath) {
@@ -186,7 +186,7 @@ function checkPlanHygiene(repo, planDirs, claimsPlan, findings) {
         'Rules',
         'AGENTS.md describes a durable plan/archive workflow but no plan directory was found',
         'AGENTS.md',
-      );
+      'APX-RUL-015');
     }
     return;
   }
@@ -204,7 +204,7 @@ function checkPlanHygiene(repo, planDirs, claimsPlan, findings) {
         'Rules',
         `${dirRel}/ has ${entries.length} markdown files — prefer one live plan + one lifecycle archive (not topic splits)`,
         dirRel,
-      );
+      'APX-RUL-016');
     }
     for (const name of entries) {
       if (/archive|shipped/i.test(name)) continue;
@@ -218,7 +218,7 @@ function checkPlanHygiene(repo, planDirs, claimsPlan, findings) {
           'Rules',
           `${rel} looks like a durable plan but is missing ${missing} on tracked sections`,
           rel,
-        );
+        'APX-RUL-017');
       }
     }
   }

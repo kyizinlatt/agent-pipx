@@ -50,16 +50,42 @@ agent-pipx report          # status + fix cards + judgement prompt
 agent-pipx fix             # dry-run remediations; `--yes` applies (*.bak)
 agent-pipx init            # scaffold AGENTS.md + bridge for detected / `--tool`
 agent-pipx init --tool claude
+agent-pipx baseline        # accept today's findings; `--yes` replaces an existing file
+agent-pipx rules           # the rule catalogue (`--json` for the raw table)
 agent-pipx upgrade         # npm version check; `--yes` installs -g
 ```
+
+### Rule IDs
+
+Every warning and failure carries a stable ID — `APX-CFG-006`, `APX-RUL-007` — listed by
+`agent-pipx rules`. Messages get reworded between releases; IDs do not, so SARIF results stay
+attached to the same rule in GitHub code scanning and dismissals survive an upgrade. IDs are
+append-only: never renumbered, never reused.
+
+### Baselines
+
+Adopting a checker on an established repo usually means fixing everything on day one or leaving
+the gate off. Instead, record what is already there and gate on what is new:
+
+```sh
+agent-pipx baseline                                  # writes .agent-pipx-baseline.json
+agent-pipx check --baseline .agent-pipx-baseline.json
+```
+
+A baseline matches on rule ID + file, never on the message, so rewording a finding does not
+silently un-accept it. Accepted findings are still counted in the summary (`N baselined`) — they
+are acknowledged, not hidden — and a new finding still exits non-zero.
 
 ## What it checks
 
 | Category | Checks |
 |---|---|
 | **Secrets** | Committed instruction/config files for credentials (AWS / GitHub / Slack / Google / AI keys, private keys). Type + line only — never the secret value. |
-| **Config** | Adapters bridge to `AGENTS.md` (import or symlink). Gemini must not use `@~/…`. Cursor `.mdc` needs frontmatter. `.claude/settings.json` + hooks valid. MCP server count surfaced. When present: `SKILL.md` / slash-command frontmatter; `.claude/settings.local.json` gitignored; soft layering warn if AGENTS.md is long while skills exist. |
-| **Rules** | `AGENTS.md` present (fail if adapters exist without it), no placeholders/stubs, lean (~200 lines), recommended signals: Commands, **Repository layout**, boundaries, sensitive-data. Layout backtick paths are soft-checked against the disk. Tracked-findings / Progress / plan claims get protocol-hygiene warns when incomplete. |
+| **Config** | Adapters bridge to `AGENTS.md` (import or symlink). Gemini must not use `@~/…`. Cursor `.mdc` needs frontmatter. `.claude/settings.json` + hooks valid. When present: `SKILL.md` / slash-command frontmatter; `.claude/settings.local.json` gitignored; soft layering warn if AGENTS.md is long while skills exist. |
+| **Extensions** | Skills copied between `.claude/skills` and `.agents/skills` that have drifted apart, two skills claiming one `name:`, and slash commands that read `$ARGUMENTS` without an `argument-hint`. |
+| **Security** | MCP servers: unpinned package runners, plain-http endpoints, literal credentials in `env` / `headers` (key name only, never the value). Permissions: bypass mode as the default, unbounded `Bash(*)` rules, a committed `--dangerously-skip-permissions`, hooks that pipe a download into a shell. |
+| **Rules** | `AGENTS.md` present (fail if adapters exist without it), no placeholders/stubs, lean (~200 lines), recommended signals: Commands, **Repository layout**, boundaries, sensitive-data. Tracked-findings / Progress / plan claims get protocol-hygiene warns when incomplete. |
+| **Claims** | What `AGENTS.md` says, checked against the repo: documented commands resolve to a real script / make target / file, the stated package manager matches the lockfile, a "zero dependencies" rule matches `package.json`, and layout and boundary paths still exist. Both sides must be explicit — no claim, no finding. |
 | **Styles** | Stack antipatterns (TS `any` / `console.log` / `@ts-ignore`; Swift `try!` / `as!` / `print`). Advisory. |
 | **Environment** | Agent CLIs on `PATH`; lockfile matches package manager; CI or pre-commit gate. |
 
@@ -67,6 +93,20 @@ Tools: Claude Code, Cursor, Gemini, Copilot, Codex, Kimi, Antigravity, Windsurf.
 live in [`adapters/tools.js`](adapters/tools.js) (official docs cited) — checks never hard-code
 tool conventions elsewhere. Entries require a real adapter path or bridge rule, not a marketing
 supported-agents list.
+
+### Managed blocks
+
+`init` never edits a file that already exists, so a `CLAUDE.md` carrying its own rules used to be
+a manual fix. `agent-pipx fix` now appends a marked block instead:
+
+```markdown
+<!-- agent-pipx:begin -->
+@AGENTS.md
+<!-- agent-pipx:end -->
+```
+
+Everything outside the markers is left byte-for-byte as written, the original is backed up to
+`*.bak`, and re-running adds nothing — the block is already there.
 
 ## The AGENTS.md model
 

@@ -101,6 +101,25 @@ export function isInsideRepo(repo, abs) {
   }
 }
 
+// Lockfile → package manager. One list: the environment check and the AGENTS.md claims check
+// must never disagree about what this repo is actually using. bun writes bun.lock (text) or the
+// older bun.lockb.
+export const LOCKFILES = [
+  ['pnpm-lock.yaml', 'pnpm'],
+  ['package-lock.json', 'npm'],
+  ['yarn.lock', 'yarn'],
+  ['bun.lock', 'bun'],
+  ['bun.lockb', 'bun'],
+];
+
+/** @returns {{file: string, manager: string}|null} */
+export function detectLockfile(repo) {
+  for (const [file, manager] of LOCKFILES) {
+    if (isFile(path.join(repo, file))) return { file, manager };
+  }
+  return null;
+}
+
 export function isDir(p) {
   try {
     return fs.statSync(p).isDirectory();

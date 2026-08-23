@@ -12,18 +12,20 @@ export class Findings {
     this.items = [];
   }
 
-  add(severity, category, message, file) {
-    this.items.push({ severity, category, message, file: file || null });
+  // `id` is a stable rule ID from src/rules-registry.js. Warnings and failures must carry one
+  // (a source-level test enforces it); passes are informational and do not need a rule.
+  add(severity, category, message, file, id) {
+    this.items.push({ severity, category, message, file: file || null, id: id || null });
   }
 
-  pass(category, message, file) {
-    this.add(PASS, category, message, file);
+  pass(category, message, file, id) {
+    this.add(PASS, category, message, file, id);
   }
-  warn(category, message, file) {
-    this.add(WARN, category, message, file);
+  warn(category, message, file, id) {
+    this.add(WARN, category, message, file, id);
   }
-  fail(category, message, file) {
-    this.add(FAIL, category, message, file);
+  fail(category, message, file, id) {
+    this.add(FAIL, category, message, file, id);
   }
 
   count(severity) {

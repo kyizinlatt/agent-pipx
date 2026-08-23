@@ -12,6 +12,9 @@
 // bridge:
 //   'native'             → tool reads AGENTS.md directly; the SSOT being present is sufficient.
 //   'import-or-symlink'  → tool reads its own file, which must reference AGENTS.md (no duplication).
+//                          Such a tool also declares bridgeFile (the adapter `init` scaffolds) and
+//                          importLine (the exact import that tool resolves). Never hard-code either
+//                          in the CLI — a new bridge tool must work from this table alone.
 //
 // projectFiles lists tool-SPECIFIC adapter paths only — never AGENTS.md itself. Presence of the
 // SSOT is handled by rules.js / checkConfig separately so we don't pretend every native reader
@@ -27,14 +30,28 @@ export const TOOLS = [
     // Claude reads CLAUDE.md, NOT AGENTS.md — docs: https://code.claude.com/docs/en/memory
     projectFiles: ['CLAUDE.md', '.claude/CLAUDE.md'],
     settings: '.claude/settings.json',
+    // Project-scoped MCP servers — docs: https://code.claude.com/docs/en/mcp
+    mcpFile: '.mcp.json',
+    // Permission model — docs: https://code.claude.com/docs/en/iam
+    permissions: {
+      bypassMode: 'bypassPermissions', // defaultMode that stops asking before every tool call
+      shellTool: 'Bash', // rule prefix for shell commands, e.g. Bash(npm run test:*)
+      skipFlag: '--dangerously-skip-permissions',
+    },
     // Skills + slash commands — docs: https://code.claude.com/docs/en/skills
     // and https://code.claude.com/docs/en/slash-commands
     skillsDirs: ['.claude/skills'],
     commandsDir: '.claude/commands',
+    // Slash-command frontmatter keys, and the placeholders a command uses to take arguments —
+    // docs: https://code.claude.com/docs/en/slash-commands
+    commandFrontmatter: ['description', 'argument-hint', 'allowed-tools'],
+    commandArgPlaceholder: /\$ARGUMENTS\b|\$[1-9]\b/,
     skillFile: 'SKILL.md',
     skillFrontmatter: ['name', 'description'],
     readsAgentsMd: false,
     bridge: 'import-or-symlink',
+    bridgeFile: 'CLAUDE.md',
+    importLine: '@AGENTS.md', // Claude resolves a bare repo-relative import
     importSupportsTilde: true, // Claude's @import expands ~ and absolute paths (depth 4)
     globalPaths: ['~/.claude/CLAUDE.md'],
   },
@@ -47,6 +64,8 @@ export const TOOLS = [
     rulesDir: '.cursor/rules',
     rulesExt: '.mdc', // plain .md in this dir is IGNORED by Cursor
     rulesFrontmatter: ['description', 'globs', 'alwaysApply'],
+    // MCP servers — docs: https://cursor.com/docs/context/mcp
+    mcpFile: '.cursor/mcp.json',
     // Agent Skills — docs: https://cursor.com/docs/skills
     skillsDirs: ['.cursor/skills', '.agents/skills'],
     skillFile: 'SKILL.md',
@@ -61,6 +80,8 @@ export const TOOLS = [
     projectFiles: ['GEMINI.md'],
     readsAgentsMd: true, // via the AGENTS.md standard
     bridge: 'import-or-symlink',
+    bridgeFile: 'GEMINI.md',
+    importLine: '@./AGENTS.md', // Gemini's import needs the explicit ./ prefix
     importSupportsTilde: false, // Gemini's memory @import resolves relative/absolute only — NOT ~
     globalPaths: ['~/.gemini/GEMINI.md'],
   },
@@ -69,6 +90,9 @@ export const TOOLS = [
     name: 'GitHub Copilot',
     cli: ['copilot'],
     projectFiles: ['.github/copilot-instructions.md'],
+    // MCP servers are configured in the VS Code workspace file — docs:
+    // https://code.visualstudio.com/docs/copilot/chat/mcp-servers
+    mcpFile: '.vscode/mcp.json',
     readsAgentsMd: true,
     bridge: 'native',
     globalPaths: ['~/.copilot/copilot-instructions.md'],
@@ -118,5 +142,9 @@ export const TOOLS = [
   },
 ];
 
-// Lookup helper.
+// Lookup helpers.
 export const toolById = (id) => TOOLS.find((t) => t.id === id);
+
+// Every per-tool MCP config path. One list, so the secrets scan and the config audit can never
+// disagree about which files describe MCP servers.
+export const mcpConfigFiles = () => TOOLS.map((t) => t.mcpFile).filter(Boolean);

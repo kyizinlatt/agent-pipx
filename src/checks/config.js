@@ -8,6 +8,8 @@ import {
 } from '../detect.js';
 import { agentsMdPath, verifyBridge } from '../ssot.js';
 import { checkExtensions } from './extensions.js';
+import { checkMcpSecurity, checkPermissions, checkSkipFlag } from './security.js';
+import { toolById } from '../../adapters/tools.js';
 
 const CORE_HOOKS = ['guard-secrets.sh', 'guard-push.sh', 'guard-env.sh', 'check-hygiene.sh'];
 
@@ -18,7 +20,7 @@ export function checkConfig(repo, findings) {
   // Adapters are tool-specific files only (not AGENTS.md) — see adapters/tools.js.
   const adapters = detectAdapters(repo);
   if (!agents && adapters.length === 0) {
-    findings.warn('Config', 'no agent-tool configuration detected (CLAUDE.md, AGENTS.md, .cursor/rules, …)');
+    findings.warn('Config', 'no agent-tool configuration detected (CLAUDE.md, AGENTS.md, .cursor/rules, …)', null, 'APX-CFG-001');
   }
   for (const entry of adapters) verifyBridge(repo, entry, agents, findings);
 
@@ -44,36 +46,34 @@ export function checkConfig(repo, findings) {
         'Config',
         '.claude/ is a symlink outside the repo — skipping Claude settings checks (CWE-59)',
         '.claude',
-      );
+      'APX-CFG-009');
     } else {
       checkClaudeDir(repo, claudeDir, findings);
     }
   }
 
-  // 3. MCP servers — surface how many are wired so their tool scope gets reviewed.
-  checkMcp(repo, findings);
+  // 3. MCP servers — how many are wired, how each is launched, and what it carries.
+  checkMcpSecurity(repo, findings);
 
-  // 4. Skills / commands structure + local-settings gitignore + soft layering.
+  // 4. The permission escape hatch, wherever it was committed. Not gated on .claude/ existing:
+  // a CI workflow or an npm script can disable prompts in a repo that has no settings file.
+  const claude = toolById('claude');
+  checkSkipFlag(repo, skipFlagCandidates(repo), claude.permissions.skipFlag, findings);
+
+  // 5. Skills / commands structure + local-settings gitignore + soft layering.
   checkExtensions(repo, findings);
 }
 
-function checkMcp(repo, findings) {
-  const files = ['.mcp.json', '.cursor/mcp.json', '.vscode/mcp.json']
-    .map((f) => path.join(repo, f))
-    .filter(isFile);
-  if (!files.length) return;
-  let servers = 0;
-  for (const f of files) {
-    try {
-      const j = JSON.parse(readText(f));
-      servers += Object.keys(j.mcpServers || j.servers || {}).length;
-    } catch {
-      findings.warn('Config', `${path.relative(repo, f)} is not valid JSON`, path.relative(repo, f));
-    }
+// Bounded list: the committed places a permission-skipping flag actually shows up.
+function skipFlagCandidates(repo) {
+  const out = ['package.json', 'Makefile', '.claude/settings.json', '.claude/settings.local.json'];
+  const wf = path.join(repo, '.github', 'workflows');
+  if (isDir(wf)) out.push(...walk(wf, { exts: ['.yml', '.yaml'] }).map((f) => path.relative(repo, f)));
+  const commands = path.join(repo, '.claude', 'commands');
+  if (isDir(commands) && !isSymlink(commands)) {
+    out.push(...walk(commands, { exts: ['.md'] }).map((f) => path.relative(repo, f)));
   }
-  if (servers > 0) {
-    findings.pass('Config', `${servers} MCP server(s) configured — review each tool's scope, prefer read-only`);
-  }
+  return out;
 }
 
 function checkClaudeDir(repo, claudeDir, findings) {
@@ -81,7 +81,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
   let dangling = 0;
   for (const f of walk(claudeDir).concat(listSymlinkDirs(claudeDir))) {
     if (isDangling(f)) {
-      findings.fail('Config', `dangling symlink: ${path.relative(repo, f)} → ${readlink(f)}`, path.relative(repo, f));
+      findings.fail('Config', `dangling symlink: ${path.relative(repo, f)} → ${readlink(f)}`, path.relative(repo, f), 'APX-CFG-011');
       dangling++;
     }
   }
@@ -89,7 +89,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
 
   const settingsPath = path.join(claudeDir, 'settings.json');
   if (!exists(settingsPath)) {
-    findings.warn('Config', '.claude/ exists but settings.json is missing');
+    findings.warn('Config', '.claude/ exists but settings.json is missing', null, 'APX-CFG-012');
     return;
   }
 
@@ -97,13 +97,16 @@ function checkClaudeDir(repo, claudeDir, findings) {
   try {
     settings = JSON.parse(readText(settingsPath));
   } catch {
-    findings.fail('Config', 'settings.json is not valid JSON', '.claude/settings.json');
+    findings.fail('Config', 'settings.json is not valid JSON', '.claude/settings.json', 'APX-CFG-013');
     return;
   }
   findings.pass('Config', 'settings.json is valid JSON');
 
   // Every hook command that points into the repo must exist and be executable.
   const hookCmds = collectHookCommands(settings);
+
+  // Is the permission system still asking? (Rules and modes are adapter facts.)
+  checkPermissions(repo, settings, hookCmds, toolById('claude'), findings);
   for (const cmd of hookCmds) {
     let script = cmd.split(/\s+/)[0]
       .replaceAll('${CLAUDE_PROJECT_DIR}', repo)
@@ -111,9 +114,9 @@ function checkClaudeDir(repo, claudeDir, findings) {
     if (!script.startsWith(repo + path.sep) && !script.startsWith(repo + '/')) continue;
     const rel = path.relative(repo, script);
     if (!exists(script)) {
-      findings.fail('Config', `hook script missing: ${rel}`, rel);
+      findings.fail('Config', `hook script missing: ${rel}`, rel, 'APX-CFG-014');
     } else if (!isExecutable(script)) {
-      findings.fail('Config', `hook script not executable: ${rel}`, rel);
+      findings.fail('Config', `hook script not executable: ${rel}`, rel, 'APX-CFG-015');
     } else {
       findings.pass('Config', `hook wired: ${rel}`);
     }
@@ -128,7 +131,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
   if (looksLikeHarness) {
     for (const hook of CORE_HOOKS) {
       if (!wiredText.includes(hook)) {
-        findings.warn('Config', `core hook ${hook} not wired (harness baseline) — repo may predate it; re-run install-harness.sh`);
+        findings.warn('Config', `core hook ${hook} not wired (harness baseline) — repo may predate it; re-run install-harness.sh`, null, 'APX-CFG-016');
       }
     }
   }
