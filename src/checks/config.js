@@ -8,6 +8,8 @@ import {
 } from '../detect.js';
 import { agentsMdPath, verifyBridge } from '../ssot.js';
 import { checkExtensions } from './extensions.js';
+import { checkMcpSecurity, checkPermissions, checkSkipFlag } from './security.js';
+import { toolById } from '../../adapters/tools.js';
 
 const CORE_HOOKS = ['guard-secrets.sh', 'guard-push.sh', 'guard-env.sh', 'check-hygiene.sh'];
 
@@ -50,30 +52,28 @@ export function checkConfig(repo, findings) {
     }
   }
 
-  // 3. MCP servers — surface how many are wired so their tool scope gets reviewed.
-  checkMcp(repo, findings);
+  // 3. MCP servers — how many are wired, how each is launched, and what it carries.
+  checkMcpSecurity(repo, findings);
 
-  // 4. Skills / commands structure + local-settings gitignore + soft layering.
+  // 4. The permission escape hatch, wherever it was committed. Not gated on .claude/ existing:
+  // a CI workflow or an npm script can disable prompts in a repo that has no settings file.
+  const claude = toolById('claude');
+  checkSkipFlag(repo, skipFlagCandidates(repo), claude.permissions.skipFlag, findings);
+
+  // 5. Skills / commands structure + local-settings gitignore + soft layering.
   checkExtensions(repo, findings);
 }
 
-function checkMcp(repo, findings) {
-  const files = ['.mcp.json', '.cursor/mcp.json', '.vscode/mcp.json']
-    .map((f) => path.join(repo, f))
-    .filter(isFile);
-  if (!files.length) return;
-  let servers = 0;
-  for (const f of files) {
-    try {
-      const j = JSON.parse(readText(f));
-      servers += Object.keys(j.mcpServers || j.servers || {}).length;
-    } catch {
-      findings.warn('Config', `${path.relative(repo, f)} is not valid JSON`, path.relative(repo, f), 'APX-CFG-010');
-    }
+// Bounded list: the committed places a permission-skipping flag actually shows up.
+function skipFlagCandidates(repo) {
+  const out = ['package.json', 'Makefile', '.claude/settings.json', '.claude/settings.local.json'];
+  const wf = path.join(repo, '.github', 'workflows');
+  if (isDir(wf)) out.push(...walk(wf, { exts: ['.yml', '.yaml'] }).map((f) => path.relative(repo, f)));
+  const commands = path.join(repo, '.claude', 'commands');
+  if (isDir(commands) && !isSymlink(commands)) {
+    out.push(...walk(commands, { exts: ['.md'] }).map((f) => path.relative(repo, f)));
   }
-  if (servers > 0) {
-    findings.pass('Config', `${servers} MCP server(s) configured — review each tool's scope, prefer read-only`);
-  }
+  return out;
 }
 
 function checkClaudeDir(repo, claudeDir, findings) {
@@ -104,6 +104,9 @@ function checkClaudeDir(repo, claudeDir, findings) {
 
   // Every hook command that points into the repo must exist and be executable.
   const hookCmds = collectHookCommands(settings);
+
+  // Is the permission system still asking? (Rules and modes are adapter facts.)
+  checkPermissions(repo, settings, hookCmds, toolById('claude'), findings);
   for (const cmd of hookCmds) {
     let script = cmd.split(/\s+/)[0]
       .replaceAll('${CLAUDE_PROJECT_DIR}', repo)

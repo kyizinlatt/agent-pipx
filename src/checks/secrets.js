@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isDir, isInsideRepo, isRegularFile, isSymlink, walk } from '../detect.js';
+import { mcpConfigFiles } from '../../adapters/tools.js';
 
 const PATTERNS = [
   [/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/, 'private key block'],
@@ -21,7 +22,8 @@ const PATTERNS = [
 const TARGET_FILES = [
   'AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'CLAUDE.local.md',
   '.github/copilot-instructions.md',
-  '.mcp.json', '.cursor/mcp.json', '.vscode/mcp.json',
+  // MCP paths come from the adapter table so this scan and the config audit cannot disagree.
+  ...mcpConfigFiles(),
 ];
 const TARGET_DIRS = ['.claude', '.cursor/rules', '.agents/rules', '.windsurf/rules'];
 

@@ -30,6 +30,14 @@ export const TOOLS = [
     // Claude reads CLAUDE.md, NOT AGENTS.md — docs: https://code.claude.com/docs/en/memory
     projectFiles: ['CLAUDE.md', '.claude/CLAUDE.md'],
     settings: '.claude/settings.json',
+    // Project-scoped MCP servers — docs: https://code.claude.com/docs/en/mcp
+    mcpFile: '.mcp.json',
+    // Permission model — docs: https://code.claude.com/docs/en/iam
+    permissions: {
+      bypassMode: 'bypassPermissions', // defaultMode that stops asking before every tool call
+      shellTool: 'Bash', // rule prefix for shell commands, e.g. Bash(npm run test:*)
+      skipFlag: '--dangerously-skip-permissions',
+    },
     // Skills + slash commands — docs: https://code.claude.com/docs/en/skills
     // and https://code.claude.com/docs/en/slash-commands
     skillsDirs: ['.claude/skills'],
@@ -52,6 +60,8 @@ export const TOOLS = [
     rulesDir: '.cursor/rules',
     rulesExt: '.mdc', // plain .md in this dir is IGNORED by Cursor
     rulesFrontmatter: ['description', 'globs', 'alwaysApply'],
+    // MCP servers — docs: https://cursor.com/docs/context/mcp
+    mcpFile: '.cursor/mcp.json',
     // Agent Skills — docs: https://cursor.com/docs/skills
     skillsDirs: ['.cursor/skills', '.agents/skills'],
     skillFile: 'SKILL.md',
@@ -76,6 +86,9 @@ export const TOOLS = [
     name: 'GitHub Copilot',
     cli: ['copilot'],
     projectFiles: ['.github/copilot-instructions.md'],
+    // MCP servers are configured in the VS Code workspace file — docs:
+    // https://code.visualstudio.com/docs/copilot/chat/mcp-servers
+    mcpFile: '.vscode/mcp.json',
     readsAgentsMd: true,
     bridge: 'native',
     globalPaths: ['~/.copilot/copilot-instructions.md'],
@@ -125,5 +138,9 @@ export const TOOLS = [
   },
 ];
 
-// Lookup helper.
+// Lookup helpers.
 export const toolById = (id) => TOOLS.find((t) => t.id === id);
+
+// Every per-tool MCP config path. One list, so the secrets scan and the config audit can never
+// disagree about which files describe MCP servers.
+export const mcpConfigFiles = () => TOOLS.map((t) => t.mcpFile).filter(Boolean);

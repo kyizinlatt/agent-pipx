@@ -12,6 +12,7 @@ export const RULE_DOC = 'https://github.com/kyizinlatt/agent-pipx#rule-ids';
 export const RULES = [
   // ---- Secrets -------------------------------------------------------------------------
   { id: 'APX-SEC-001', category: 'Secrets', title: 'Credential committed in an agent config file' },
+  { id: 'APX-SEC-002', category: 'Secrets', title: 'Literal credential in an MCP server definition' },
 
   // ---- Config: SSOT bridges ------------------------------------------------------------
   { id: 'APX-CFG-001', category: 'Config', title: 'No agent-tool configuration detected' },
@@ -47,6 +48,14 @@ export const RULES = [
   { id: 'APX-CFG-027', category: 'Config', title: 'Slash command body is too long for an entry point' },
   { id: 'APX-CFG-028', category: 'Config', title: 'Local settings file is not gitignored' },
   { id: 'APX-CFG-029', category: 'Config', title: 'Always-on instructions long while skills exist' },
+
+  // ---- Config: agent surface security --------------------------------------------------
+  { id: 'APX-CFG-030', category: 'Config', title: 'MCP server runs an unpinned package spec' },
+  { id: 'APX-CFG-031', category: 'Config', title: 'MCP server connects over plain http' },
+  { id: 'APX-CFG-032', category: 'Config', title: 'Permission prompts disabled by default' },
+  { id: 'APX-CFG-033', category: 'Config', title: 'Permission rule allows any shell command' },
+  { id: 'APX-CFG-034', category: 'Config', title: 'Permission-skipping flag committed to the repo' },
+  { id: 'APX-CFG-035', category: 'Config', title: 'Hook pipes downloaded content into a shell' },
 
   // ---- Rules: the AGENTS.md SSOT itself ------------------------------------------------
   { id: 'APX-RUL-001', category: 'Rules', title: 'Tool adapters present but no AGENTS.md' },

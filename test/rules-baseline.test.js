@@ -63,7 +63,12 @@ test('every warn/fail call site passes a registered rule ID', () => {
       if (!id) offenders.push(`${path.relative(ROOT, file)}: ${call.slice(0, 60)}…`);
       else {
         used.add(id[1]);
-        assert.ok(ruleById(id[1]), `${id[1]} is not in the registry (${path.relative(ROOT, file)})`);
+        const rule = ruleById(id[1]);
+        assert.ok(rule, `${id[1]} is not in the registry (${path.relative(ROOT, file)})`);
+        const category = call.match(/\(\s*'([A-Z]\w+)'/);
+        if (category) {
+          assert.equal(rule.category, category[1], `${id[1]} is reported as ${category[1]} but registered as ${rule.category}`);
+        }
       }
     }
   }
