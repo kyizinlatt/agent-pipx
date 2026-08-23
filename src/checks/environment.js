@@ -63,7 +63,10 @@ function packageHasDeps(pkgPath) {
 
 // A git repo should have an automated quality gate: CI and/or pre-commit hooks.
 function checkQualityGate(repo, findings) {
-  if (!isDir(path.join(repo, '.git'))) return; // only meaningful inside a repo
+  // `.git` is a directory in a normal clone, but a regular file holding `gitdir: …` in a linked
+  // worktree or a submodule — treating only the directory as a repo silently skipped this check.
+  const dotGit = path.join(repo, '.git');
+  if (!isDir(dotGit) && !isFile(dotGit)) return; // only meaningful inside a repo
   const wf = path.join(repo, '.github', 'workflows');
   const hasCI =
     (isDir(wf) && walk(wf, { exts: ['.yml', '.yaml'] }).length > 0) ||

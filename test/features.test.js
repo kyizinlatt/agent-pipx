@@ -211,3 +211,12 @@ test('--path rejects a file (must be a directory)', async () => {
     /no such directory/,
   );
 });
+
+test('init: bridge file + import line come from the adapter table, not the tool id', async () => {
+  const repo = mkrepo({});
+  await run(['init', '--tool', 'gemini', '--path', repo]);
+  assert.equal(fs.readFileSync(path.join(repo, 'GEMINI.md'), 'utf8'), '@./AGENTS.md\n');
+  assert.ok(!fs.existsSync(path.join(repo, 'CLAUDE.md')), 'must not scaffold another tool’s bridge file');
+  const f = runChecks(repo);
+  assert.equal(f.count(FAIL), 0, JSON.stringify(f.items, null, 2));
+});

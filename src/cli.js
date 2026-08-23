@@ -168,15 +168,18 @@ function doInit(repo, toolId) {
       console.log(`${tool.name}: reads AGENTS.md natively — no bridge file needed`);
       continue;
     }
-    // import-or-symlink tools (claude → CLAUDE.md, gemini → GEMINI.md).
-    const bridgeFile = id === 'gemini' ? 'GEMINI.md' : 'CLAUDE.md';
+    // import-or-symlink tools: which file to write, and the import it must contain, are
+    // adapter facts (adapters/tools.js) — not something the CLI may guess per tool id.
+    const { bridgeFile, importLine } = tool;
+    if (!bridgeFile || !importLine) {
+      console.log(`${tool.name}: adapter declares no bridge file — skipped`);
+      continue;
+    }
     const dest = path.join(repo, bridgeFile);
     if (exists(dest)) {
       console.log(`${bridgeFile}: kept existing`);
       continue;
     }
-    // Claude accepts a bare `@AGENTS.md`; Gemini's import needs an explicit relative prefix.
-    const importLine = id === 'gemini' ? '@./AGENTS.md' : '@AGENTS.md';
     fs.writeFileSync(dest, `${importLine}\n`);
     console.log(`created ${bridgeFile} → imports AGENTS.md (${tool.name})`);
   }

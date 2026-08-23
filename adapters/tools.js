@@ -12,6 +12,9 @@
 // bridge:
 //   'native'             → tool reads AGENTS.md directly; the SSOT being present is sufficient.
 //   'import-or-symlink'  → tool reads its own file, which must reference AGENTS.md (no duplication).
+//                          Such a tool also declares bridgeFile (the adapter `init` scaffolds) and
+//                          importLine (the exact import that tool resolves). Never hard-code either
+//                          in the CLI — a new bridge tool must work from this table alone.
 //
 // projectFiles lists tool-SPECIFIC adapter paths only — never AGENTS.md itself. Presence of the
 // SSOT is handled by rules.js / checkConfig separately so we don't pretend every native reader
@@ -35,6 +38,8 @@ export const TOOLS = [
     skillFrontmatter: ['name', 'description'],
     readsAgentsMd: false,
     bridge: 'import-or-symlink',
+    bridgeFile: 'CLAUDE.md',
+    importLine: '@AGENTS.md', // Claude resolves a bare repo-relative import
     importSupportsTilde: true, // Claude's @import expands ~ and absolute paths (depth 4)
     globalPaths: ['~/.claude/CLAUDE.md'],
   },
@@ -61,6 +66,8 @@ export const TOOLS = [
     projectFiles: ['GEMINI.md'],
     readsAgentsMd: true, // via the AGENTS.md standard
     bridge: 'import-or-symlink',
+    bridgeFile: 'GEMINI.md',
+    importLine: '@./AGENTS.md', // Gemini's import needs the explicit ./ prefix
     importSupportsTilde: false, // Gemini's memory @import resolves relative/absolute only — NOT ~
     globalPaths: ['~/.gemini/GEMINI.md'],
   },
