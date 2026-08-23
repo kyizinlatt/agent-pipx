@@ -49,6 +49,11 @@ export const RULES = [
   { id: 'APX-CFG-028', category: 'Config', title: 'Local settings file is not gitignored' },
   { id: 'APX-CFG-029', category: 'Config', title: 'Always-on instructions long while skills exist' },
 
+  { id: 'APX-CFG-036', category: 'Config', title: 'Copies of one skill have drifted apart' },
+  { id: 'APX-CFG-037', category: 'Config', title: 'Two skills claim the same name' },
+  { id: 'APX-CFG-038', category: 'Config', title: 'Slash command reads arguments with no argument-hint' },
+  { id: 'APX-CFG-039', category: 'Config', title: 'File has more than one managed block' },
+
   // ---- Config: agent surface security --------------------------------------------------
   { id: 'APX-CFG-030', category: 'Config', title: 'MCP server runs an unpinned package spec' },
   { id: 'APX-CFG-031', category: 'Config', title: 'MCP server connects over plain http' },

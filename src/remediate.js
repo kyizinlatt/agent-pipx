@@ -5,6 +5,9 @@ import { FAIL, WARN } from './findings.js';
 
 const TIPS_BY_ID = {
   'APX-SEC-002': 'Move the value into your environment and reference it (`"${VAR_NAME}"`), then rotate the committed credential.',
+  'APX-CFG-036': 'Make one copy the source and symlink or delete the other — two editable copies drift again.',
+  'APX-CFG-037': 'Rename one skill so each name resolves to exactly one skill.',
+  'APX-CFG-038': 'Add an `argument-hint:` line to the frontmatter describing what the command expects.',
   'APX-CFG-030': 'Pin the MCP server to a released version (`package@1.2.3`) so a new publish cannot change what runs.',
   'APX-CFG-031': 'Use the https endpoint, or keep the server on localhost — plain http exposes the token in transit.',
   'APX-CFG-032': 'Remove `defaultMode` (or set an asking mode) and grant specific tools instead of disabling every prompt.',

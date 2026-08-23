@@ -3,6 +3,7 @@
 import path from 'node:path';
 import { SSOT } from '../adapters/tools.js';
 import { assertInsideRepo, exists, isFile, isDir, isRegularFile, isSymlink, readText, sameFile, walk } from './detect.js';
+import { countBlocks } from './managed-block.js';
 
 export function agentsMdPath(repo) {
   const p = path.join(repo, SSOT);
@@ -20,7 +21,7 @@ export function agentsMdPath(repo) {
 }
 
 // Relative (or ~) @-import of AGENTS.md — not an absolute filesystem path.
-const IMPORTS_AGENTS = /^@\S*AGENTS\.md\s*$/m;
+export const IMPORTS_AGENTS = /^@\S*AGENTS\.md\s*$/m;
 const IMPORTS_AGENTS_ABSOLUTE = /^@\/\S*AGENTS\.md\s*$/m;
 // A tilde import — valid in Claude, but NOT resolvable by Gemini.
 const IMPORT_TILDE = /^@~\//m;
@@ -68,6 +69,15 @@ export function verifyBridge(repo, entry, agents, findings) {
         rel,
       'APX-CFG-004');
       continue;
+    }
+
+    if (countBlocks(content) > 1) {
+      findings.warn(
+        'Config',
+        `${rel} has ${countBlocks(content)} agent-pipx managed blocks — merge them into one so a refresh updates the right region`,
+        rel,
+        'APX-CFG-039',
+      );
     }
 
     if (sameFile(abs, agents)) {

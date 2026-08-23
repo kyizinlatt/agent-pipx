@@ -42,6 +42,10 @@ export const TOOLS = [
     // and https://code.claude.com/docs/en/slash-commands
     skillsDirs: ['.claude/skills'],
     commandsDir: '.claude/commands',
+    // Slash-command frontmatter keys, and the placeholders a command uses to take arguments —
+    // docs: https://code.claude.com/docs/en/slash-commands
+    commandFrontmatter: ['description', 'argument-hint', 'allowed-tools'],
+    commandArgPlaceholder: /\$ARGUMENTS\b|\$[1-9]\b/,
     skillFile: 'SKILL.md',
     skillFrontmatter: ['name', 'description'],
     readsAgentsMd: false,
