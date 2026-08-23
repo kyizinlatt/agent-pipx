@@ -10,6 +10,10 @@ const TIPS_BY_ID = {
   'APX-CFG-032': 'Remove `defaultMode` (or set an asking mode) and grant specific tools instead of disabling every prompt.',
   'APX-CFG-033': 'Replace the wildcard with the commands you actually run, e.g. `Bash(npm run test:*)`.',
   'APX-CFG-034': 'Drop the flag from the committed file. If a CI job genuinely needs it, scope it to that job and say why.',
+  'APX-RUL-018': 'Rename the command in AGENTS.md to the script that exists, or restore the script — an agent copies this line verbatim.',
+  'APX-RUL-019': 'Update AGENTS.md to the package manager the lockfile proves, or switch the repo and delete the stale lockfile.',
+  'APX-RUL-020': 'Either drop the dependency or drop the claim — a rule the repo already breaks trains agents to ignore the file.',
+  'APX-RUL-021': 'Point the boundary at the path that exists now, or remove the rule if the directory is gone.',
   'APX-CFG-035': 'Vendor the script into the repo (reviewable, pinned) and run it from there instead of piping a URL into a shell.',
 };
 

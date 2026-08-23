@@ -4,6 +4,7 @@ import path from 'node:path';
 import { detectAdapters, exists, readText } from '../detect.js';
 import { agentsMdPath } from '../ssot.js';
 import { checkProtocolArtifacts, checkProtocolSignals } from './protocol.js';
+import { checkClaims, extractSection } from './claims.js';
 
 const PLACEHOLDER = /\{\{[A-Z_]+\}\}/; // {{PROJECT_NAME}} etc. left from scaffolding
 const STUB = /\[(…|\.\.\.|one-line description|Framework \+ language|Domain rule|Entry point)/;
@@ -41,6 +42,7 @@ export function checkRules(repo, findings) {
   checkQuality(content, findings);
   checkCompleteness(content, findings);
   checkLayoutPaths(repo, content, findings);
+  checkClaims(repo, content, findings);
   checkProtocolSignals(content, findings);
   checkProtocolArtifacts(repo, content, findings);
 }
@@ -100,26 +102,10 @@ function checkLayoutPaths(repo, content, findings) {
 
 /** @returns {string|null} body of the first structure/layout heading, or null if none */
 function extractLayoutSection(content) {
-  const lines = content.split('\n');
-  let start = -1;
-  let level = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^(#{1,6})\s+(\S.*)$/);
-    if (!m) continue;
-    if (/(structure|layout|directories)\b/i.test(m[2]) || /\b(repository|project|repo)\s+layout\b/i.test(m[2])) {
-      start = i + 1;
-      level = m[1].length;
-      break;
-    }
-  }
-  if (start < 0) return null;
-  const body = [];
-  for (let i = start; i < lines.length; i++) {
-    const m = lines[i].match(/^(#{1,6})\s+/);
-    if (m && m[1].length <= level) break;
-    body.push(lines[i]);
-  }
-  return body.join('\n');
+  return extractSection(
+    content,
+    (h) => /(structure|layout|directories)\b/i.test(h) || /\b(repository|project|repo)\s+layout\b/i.test(h),
+  );
 }
 
 /**

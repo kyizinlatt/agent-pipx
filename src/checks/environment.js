@@ -1,7 +1,7 @@
 // ENVIRONMENT checks: which agent-tool CLIs are installed (informational), base tooling, and
 // package-manager ↔ lockfile agreement.
 import path from 'node:path';
-import { detectInstalledClis, detectStack, hasBinary, isDir, isFile, readText, walk } from '../detect.js';
+import { detectInstalledClis, detectLockfile, detectStack, hasBinary, isDir, isFile, readText, walk } from '../detect.js';
 
 export function checkEnvironment(repo, findings) {
   checkQualityGate(repo, findings);
@@ -21,16 +21,10 @@ export function checkEnvironment(repo, findings) {
   const { webTs, swift } = detectStack(repo);
   if (webTs) {
     if (!hasBinary('node')) findings.warn('Environment', 'package.json present but node not on PATH', null, 'APX-ENV-002');
-    const lockfiles = [
-      ['pnpm-lock.yaml', 'pnpm'],
-      ['package-lock.json', 'npm'],
-      ['yarn.lock', 'yarn'],
-      ['bun.lockb', 'bun'],
-    ];
-    const found = lockfiles.find(([f]) => isFile(path.join(repo, f)));
+    const found = detectLockfile(repo);
     if (found) {
-      findings.pass('Environment', `${found[1]} lockfile present`);
-      if (found[1] === 'pnpm' && !hasBinary('pnpm')) {
+      findings.pass('Environment', `${found.manager} lockfile present`);
+      if (found.manager === 'pnpm' && !hasBinary('pnpm')) {
         findings.warn('Environment', 'pnpm-lock.yaml present but pnpm not on PATH', null, 'APX-ENV-003');
       }
     } else if (packageHasDeps(path.join(repo, 'package.json'))) {

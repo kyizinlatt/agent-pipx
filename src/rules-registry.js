@@ -68,6 +68,12 @@ export const RULES = [
   { id: 'APX-RUL-008', category: 'Rules', title: 'AGENTS.md is oversized for reliable adherence' },
   { id: 'APX-RUL-009', category: 'Rules', title: 'AGENTS.md has empty sections' },
 
+  // ---- Rules: does AGENTS.md still describe this repo? ---------------------------------
+  { id: 'APX-RUL-018', category: 'Rules', title: 'Documented command does not resolve' },
+  { id: 'APX-RUL-019', category: 'Rules', title: 'Documented package manager is not the one in use' },
+  { id: 'APX-RUL-020', category: 'Rules', title: 'Dependency claim contradicted by package.json' },
+  { id: 'APX-RUL-021', category: 'Rules', title: 'Boundary path does not exist' },
+
   // ---- Rules: tracked-findings / progress / plan discipline ----------------------------
   { id: 'APX-RUL-010', category: 'Rules', title: 'Tracked-findings section is missing role signals' },
   { id: 'APX-RUL-011', category: 'Rules', title: 'Progress log present without documented ledger roles' },
