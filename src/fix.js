@@ -4,28 +4,12 @@
 // reported as manual, never auto-rewritten.
 //
 // Writes never follow symlinks (CWE-59): only regular files whose realpath stays inside the repo.
-import fs from 'node:fs';
 import path from 'node:path';
 import { agentsMdPath } from './ssot.js';
-import { assertInsideRepo, exists, isRegularFile, isSymlink, readText } from './detect.js';
+import { isRegularFile, readText } from './detect.js';
+import { writeRepoFile } from './safe-write.js';
 
 const IMPORT_TILDE = /^@~\/.*$/m;
-
-/** Write `content` to `abs` only if the path is a regular file (or new) inside `repo`. */
-function writeRepoFile(repo, abs, content) {
-  if (isSymlink(abs)) {
-    throw new Error(`${path.basename(abs)} is a symlink — refusing to write through it`);
-  }
-  if (exists(abs) && !isRegularFile(abs)) {
-    throw new Error(`refusing to write non-regular file: ${path.basename(abs)}`);
-  }
-  if (exists(abs)) {
-    assertInsideRepo(repo, abs);
-  } else {
-    assertInsideRepo(repo, path.dirname(abs));
-  }
-  fs.writeFileSync(abs, content);
-}
 
 // Each fixer: { detect(repo) -> {file, describe, apply()} | null }. Add more over time.
 function fixers(repo) {

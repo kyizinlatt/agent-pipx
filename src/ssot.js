@@ -38,7 +38,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${tool.name} has .github/copilot-instructions.md but no AGENTS.md SSOT — rules live only in the Copilot file`,
         '.github/copilot-instructions.md',
-      );
+      'APX-CFG-002');
     }
     return;
   }
@@ -56,7 +56,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} uses an @~/… import, which ${tool.name} cannot resolve (no ~ expansion) — rules never load; use a relative/absolute path or a symlink`,
         rel,
-      );
+      'APX-CFG-003');
       continue;
     }
 
@@ -66,7 +66,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} is present but there is no AGENTS.md to bridge to`,
         rel,
-      );
+      'APX-CFG-004');
       continue;
     }
 
@@ -77,7 +77,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} @-imports AGENTS.md via an absolute path — bridge should point at this repo's SSOT (@AGENTS.md or @./AGENTS.md)`,
         rel,
-      );
+      'APX-CFG-005');
     } else if (IMPORTS_AGENTS.test(content)) {
       findings.pass('Config', `${rel} imports AGENTS.md via @ — bridged to SSOT`, rel);
     } else {
@@ -85,7 +85,7 @@ export function verifyBridge(repo, entry, agents, findings) {
         'Config',
         `${rel} does not @-import or symlink AGENTS.md — rules may be duplicated and drift (${tool.name})`,
         rel,
-      );
+      'APX-CFG-006');
     }
   }
 }
@@ -101,12 +101,12 @@ function validateCursorRules(repo, findings) {
       const content = readText(f);
       const first = (content.split('\n')[0] ?? '');
       if (!/^---\s*$/.test(first)) {
-        findings.warn('Config', `${rel} is a .mdc rule with no frontmatter — add description/globs/alwaysApply`, rel);
+        findings.warn('Config', `${rel} is a .mdc rule with no frontmatter — add description/globs/alwaysApply`, rel, 'APX-CFG-007');
       } else {
         findings.pass('Config', `${rel} is a valid Cursor rule`, rel);
       }
     } else if (f.endsWith('.md')) {
-      findings.warn('Config', `${rel} is a plain .md in .cursor/rules — Cursor ignores it (use .mdc)`, rel);
+      findings.warn('Config', `${rel} is a plain .md in .cursor/rules — Cursor ignores it (use .mdc)`, rel, 'APX-CFG-008');
     }
   }
 }

@@ -18,7 +18,7 @@ export function checkConfig(repo, findings) {
   // Adapters are tool-specific files only (not AGENTS.md) — see adapters/tools.js.
   const adapters = detectAdapters(repo);
   if (!agents && adapters.length === 0) {
-    findings.warn('Config', 'no agent-tool configuration detected (CLAUDE.md, AGENTS.md, .cursor/rules, …)');
+    findings.warn('Config', 'no agent-tool configuration detected (CLAUDE.md, AGENTS.md, .cursor/rules, …)', null, 'APX-CFG-001');
   }
   for (const entry of adapters) verifyBridge(repo, entry, agents, findings);
 
@@ -44,7 +44,7 @@ export function checkConfig(repo, findings) {
         'Config',
         '.claude/ is a symlink outside the repo — skipping Claude settings checks (CWE-59)',
         '.claude',
-      );
+      'APX-CFG-009');
     } else {
       checkClaudeDir(repo, claudeDir, findings);
     }
@@ -68,7 +68,7 @@ function checkMcp(repo, findings) {
       const j = JSON.parse(readText(f));
       servers += Object.keys(j.mcpServers || j.servers || {}).length;
     } catch {
-      findings.warn('Config', `${path.relative(repo, f)} is not valid JSON`, path.relative(repo, f));
+      findings.warn('Config', `${path.relative(repo, f)} is not valid JSON`, path.relative(repo, f), 'APX-CFG-010');
     }
   }
   if (servers > 0) {
@@ -81,7 +81,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
   let dangling = 0;
   for (const f of walk(claudeDir).concat(listSymlinkDirs(claudeDir))) {
     if (isDangling(f)) {
-      findings.fail('Config', `dangling symlink: ${path.relative(repo, f)} → ${readlink(f)}`, path.relative(repo, f));
+      findings.fail('Config', `dangling symlink: ${path.relative(repo, f)} → ${readlink(f)}`, path.relative(repo, f), 'APX-CFG-011');
       dangling++;
     }
   }
@@ -89,7 +89,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
 
   const settingsPath = path.join(claudeDir, 'settings.json');
   if (!exists(settingsPath)) {
-    findings.warn('Config', '.claude/ exists but settings.json is missing');
+    findings.warn('Config', '.claude/ exists but settings.json is missing', null, 'APX-CFG-012');
     return;
   }
 
@@ -97,7 +97,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
   try {
     settings = JSON.parse(readText(settingsPath));
   } catch {
-    findings.fail('Config', 'settings.json is not valid JSON', '.claude/settings.json');
+    findings.fail('Config', 'settings.json is not valid JSON', '.claude/settings.json', 'APX-CFG-013');
     return;
   }
   findings.pass('Config', 'settings.json is valid JSON');
@@ -111,9 +111,9 @@ function checkClaudeDir(repo, claudeDir, findings) {
     if (!script.startsWith(repo + path.sep) && !script.startsWith(repo + '/')) continue;
     const rel = path.relative(repo, script);
     if (!exists(script)) {
-      findings.fail('Config', `hook script missing: ${rel}`, rel);
+      findings.fail('Config', `hook script missing: ${rel}`, rel, 'APX-CFG-014');
     } else if (!isExecutable(script)) {
-      findings.fail('Config', `hook script not executable: ${rel}`, rel);
+      findings.fail('Config', `hook script not executable: ${rel}`, rel, 'APX-CFG-015');
     } else {
       findings.pass('Config', `hook wired: ${rel}`);
     }
@@ -128,7 +128,7 @@ function checkClaudeDir(repo, claudeDir, findings) {
   if (looksLikeHarness) {
     for (const hook of CORE_HOOKS) {
       if (!wiredText.includes(hook)) {
-        findings.warn('Config', `core hook ${hook} not wired (harness baseline) — repo may predate it; re-run install-harness.sh`);
+        findings.warn('Config', `core hook ${hook} not wired (harness baseline) — repo may predate it; re-run install-harness.sh`, null, 'APX-CFG-016');
       }
     }
   }

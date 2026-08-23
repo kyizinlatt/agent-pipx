@@ -7,7 +7,7 @@ export function checkEnvironment(repo, findings) {
   checkQualityGate(repo, findings);
   // git is assumed by nearly everything.
   if (hasBinary('git')) findings.pass('Environment', 'git available');
-  else findings.warn('Environment', 'git not on PATH');
+  else findings.warn('Environment', 'git not on PATH', null, 'APX-ENV-001');
 
   // ripgrep speeds scans but is optional — the tool falls back to Node's own walk.
   if (!hasBinary('rg')) findings.pass('Environment', 'ripgrep optional (using built-in scan)');
@@ -20,7 +20,7 @@ export function checkEnvironment(repo, findings) {
 
   const { webTs, swift } = detectStack(repo);
   if (webTs) {
-    if (!hasBinary('node')) findings.warn('Environment', 'package.json present but node not on PATH');
+    if (!hasBinary('node')) findings.warn('Environment', 'package.json present but node not on PATH', null, 'APX-ENV-002');
     const lockfiles = [
       ['pnpm-lock.yaml', 'pnpm'],
       ['package-lock.json', 'npm'],
@@ -31,17 +31,17 @@ export function checkEnvironment(repo, findings) {
     if (found) {
       findings.pass('Environment', `${found[1]} lockfile present`);
       if (found[1] === 'pnpm' && !hasBinary('pnpm')) {
-        findings.warn('Environment', 'pnpm-lock.yaml present but pnpm not on PATH');
+        findings.warn('Environment', 'pnpm-lock.yaml present but pnpm not on PATH', null, 'APX-ENV-003');
       }
     } else if (packageHasDeps(path.join(repo, 'package.json'))) {
-      findings.warn('Environment', 'package.json but no lockfile — dependency versions unpinned');
+      findings.warn('Environment', 'package.json but no lockfile — dependency versions unpinned', null, 'APX-ENV-004');
     } else {
       findings.pass('Environment', 'package.json has no dependencies to pin');
     }
   }
   if (swift) {
     if (!hasBinary('swift') && !hasBinary('xcodebuild')) {
-      findings.warn('Environment', 'Swift sources present but neither swift nor xcodebuild on PATH');
+      findings.warn('Environment', 'Swift sources present but neither swift nor xcodebuild on PATH', null, 'APX-ENV-005');
     }
   }
 }
@@ -76,6 +76,6 @@ function checkQualityGate(repo, findings) {
   if (hasCI || hasPreCommit) {
     findings.pass('Environment', 'automated quality gate present (CI and/or pre-commit)');
   } else {
-    findings.warn('Environment', 'no CI workflow or pre-commit hooks found — add an automated quality gate');
+    findings.warn('Environment', 'no CI workflow or pre-commit hooks found — add an automated quality gate', null, 'APX-ENV-006');
   }
 }

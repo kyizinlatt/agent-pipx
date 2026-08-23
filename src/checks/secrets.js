@@ -51,7 +51,7 @@ export function checkSecrets(repo, findings) {
     lines.forEach((line, i) => {
       for (const [re, label] of PATTERNS) {
         if (re.test(line)) {
-          findings.fail('Secrets', `possible ${label} committed in ${rel}:${i + 1} — rotate it and remove from the file`, rel);
+          findings.fail('Secrets', `possible ${label} committed in ${rel}:${i + 1} — rotate it and remove from the file`, rel, 'APX-SEC-001');
           clean = false;
         }
       }

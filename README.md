@@ -50,8 +50,31 @@ agent-pipx report          # status + fix cards + judgement prompt
 agent-pipx fix             # dry-run remediations; `--yes` applies (*.bak)
 agent-pipx init            # scaffold AGENTS.md + bridge for detected / `--tool`
 agent-pipx init --tool claude
+agent-pipx baseline        # accept today's findings; `--yes` replaces an existing file
+agent-pipx rules           # the rule catalogue (`--json` for the raw table)
 agent-pipx upgrade         # npm version check; `--yes` installs -g
 ```
+
+### Rule IDs
+
+Every warning and failure carries a stable ID — `APX-CFG-006`, `APX-RUL-007` — listed by
+`agent-pipx rules`. Messages get reworded between releases; IDs do not, so SARIF results stay
+attached to the same rule in GitHub code scanning and dismissals survive an upgrade. IDs are
+append-only: never renumbered, never reused.
+
+### Baselines
+
+Adopting a checker on an established repo usually means fixing everything on day one or leaving
+the gate off. Instead, record what is already there and gate on what is new:
+
+```sh
+agent-pipx baseline                                  # writes .agent-pipx-baseline.json
+agent-pipx check --baseline .agent-pipx-baseline.json
+```
+
+A baseline matches on rule ID + file, never on the message, so rewording a finding does not
+silently un-accept it. Accepted findings are still counted in the summary (`N baselined`) — they
+are acknowledged, not hidden — and a new finding still exits non-zero.
 
 ## What it checks
 

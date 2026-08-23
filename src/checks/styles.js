@@ -41,29 +41,29 @@ export function checkStyles(repo, findings) {
   if (webTs) {
     const files = walk(repo, { exts: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx'] });
     const consoleN = countMatches(files, repo, RE_CONSOLE);
-    if (consoleN > 0) findings.warn('Styles', `${consoleN} console.log/debug/info call(s) outside tests`);
+    if (consoleN > 0) findings.warn('Styles', `${consoleN} console.log/debug/info call(s) outside tests`, null, 'APX-STY-001');
     else findings.pass('Styles', 'no stray console logging');
 
     const anyN = countMatches(files, repo, RE_ANY);
-    if (anyN > 0) findings.warn('Styles', `${anyN} use(s) of \`any\` outside tests`);
+    if (anyN > 0) findings.warn('Styles', `${anyN} use(s) of \`any\` outside tests`, null, 'APX-STY-002');
 
     const ignoreN = countMatches(files, repo, RE_TS_IGNORE);
     if (ignoreN > 0) {
       // Split tokens so this file's source does not match RE_TS_IGNORE.
-      findings.warn('Styles', `${ignoreN} @ts-` + 'ignore/@ts-' + 'nocheck outside tests');
+      findings.warn('Styles', `${ignoreN} @ts-` + 'ignore/@ts-' + 'nocheck outside tests', null, 'APX-STY-003');
     }
   }
 
   if (swift) {
     const files = walk(repo, { exts: ['.swift'] });
     const tryN = countMatches(files, repo, RE_TRY_BANG);
-    if (tryN > 0) findings.warn('Styles', `${tryN} force-try (try!) outside tests`);
+    if (tryN > 0) findings.warn('Styles', `${tryN} force-try (try!) outside tests`, null, 'APX-STY-004');
 
     const castN = countMatches(files, repo, RE_AS_BANG);
-    if (castN > 0) findings.warn('Styles', `${castN} force-cast (as!) outside tests`);
+    if (castN > 0) findings.warn('Styles', `${castN} force-cast (as!) outside tests`, null, 'APX-STY-005');
 
     const printN = countMatches(files, repo, RE_PRINT);
-    if (printN > 0) findings.warn('Styles', `${printN} print() call(s) outside tests`);
+    if (printN > 0) findings.warn('Styles', `${printN} print() call(s) outside tests`, null, 'APX-STY-006');
   }
 
   if (!webTs && !swift) {

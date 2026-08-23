@@ -36,7 +36,7 @@ function checkSkillsDir(repo, relDir, tool, findings) {
   const dir = path.join(repo, relDir);
   if (!isDir(dir)) return;
   if (isSymlink(dir) && !isInsideRepo(repo, dir)) {
-    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping skills checks (CWE-59)`, relDir);
+    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping skills checks (CWE-59)`, relDir, 'APX-CFG-017');
     return;
   }
 
@@ -58,7 +58,7 @@ function checkSkillsDir(repo, relDir, tool, findings) {
       try {
         isDirectory = fs.statSync(full).isDirectory();
       } catch {
-        findings.fail('Config', `dangling symlink: ${path.join(relDir, e.name)}`, path.join(relDir, e.name));
+        findings.fail('Config', `dangling symlink: ${path.join(relDir, e.name)}`, path.join(relDir, e.name), 'APX-CFG-018');
         continue;
       }
     }
@@ -68,19 +68,19 @@ function checkSkillsDir(repo, relDir, tool, findings) {
     const skillPath = path.join(full, skillFile);
     const skillRel = path.join(relDir, e.name, skillFile);
     if (!isFile(skillPath)) {
-      findings.fail('Config', `skill directory missing ${skillFile}: ${path.join(relDir, e.name)}`, path.join(relDir, e.name));
+      findings.fail('Config', `skill directory missing ${skillFile}: ${path.join(relDir, e.name)}`, path.join(relDir, e.name), 'APX-CFG-019');
       continue;
     }
 
     const content = readText(skillPath);
     const fm = parseFrontmatter(content);
     if (!fm) {
-      findings.warn('Config', `${skillRel} has no YAML frontmatter — add description (and name) so the agent can match it`, skillRel);
+      findings.warn('Config', `${skillRel} has no YAML frontmatter — add description (and name) so the agent can match it`, skillRel, 'APX-CFG-020');
       continue;
     }
     const desc = (fm.description || '').trim();
     if (!desc) {
-      findings.warn('Config', `${skillRel} frontmatter is missing a non-empty description`, skillRel);
+      findings.warn('Config', `${skillRel} frontmatter is missing a non-empty description`, skillRel, 'APX-CFG-021');
     }
     const name = (fm.name || '').trim();
     if (name && name !== e.name) {
@@ -88,7 +88,7 @@ function checkSkillsDir(repo, relDir, tool, findings) {
         'Config',
         `${skillRel} frontmatter name "${name}" does not match directory "${e.name}"`,
         skillRel,
-      );
+      'APX-CFG-022');
     }
     if (desc && (!name || name === e.name)) {
       findings.pass('Config', `skill ok: ${path.join(relDir, e.name)}`, skillRel);
@@ -104,7 +104,7 @@ function checkCommandsDir(repo, relDir, findings) {
   const dir = path.join(repo, relDir);
   if (!isDir(dir)) return;
   if (isSymlink(dir) && !isInsideRepo(repo, dir)) {
-    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping commands checks (CWE-59)`, relDir);
+    findings.warn('Config', `${relDir}/ is a symlink outside the repo — skipping commands checks (CWE-59)`, relDir, 'APX-CFG-023');
     return;
   }
 
@@ -122,16 +122,16 @@ function checkCommandsDir(repo, relDir, findings) {
     const content = readText(full);
     const fm = parseFrontmatter(content);
     if (!fm) {
-      findings.warn('Config', `${rel} has no YAML frontmatter — add a description for the slash command`, rel);
+      findings.warn('Config', `${rel} has no YAML frontmatter — add a description for the slash command`, rel, 'APX-CFG-024');
       continue;
     }
     if (!(fm.description || '').trim()) {
-      findings.warn('Config', `${rel} frontmatter is missing a non-empty description`, rel);
+      findings.warn('Config', `${rel} frontmatter is missing a non-empty description`, rel, 'APX-CFG-025');
     }
     if (fm['allowed-tools'] != null || fm.allowed_tools != null) {
       const raw = fm['allowed-tools'] ?? fm.allowed_tools;
       if (typeof raw === 'string' && raw.trim() && /:\s*$/.test(raw.trim())) {
-        findings.warn('Config', `${rel} allowed-tools looks truncated or invalid`, rel);
+        findings.warn('Config', `${rel} allowed-tools looks truncated or invalid`, rel, 'APX-CFG-026');
       }
     }
     const bodyLines = bodyLineCount(content);
@@ -140,7 +140,7 @@ function checkCommandsDir(repo, relDir, findings) {
         'Config',
         `${rel} body is ${bodyLines} lines — slash commands should stay thin entry points (method belongs in a skill or AGENTS.md)`,
         rel,
-      );
+      'APX-CFG-027');
     } else if ((fm.description || '').trim()) {
       findings.pass('Config', `command ok: ${rel}`, rel);
     }
@@ -160,7 +160,7 @@ function checkLocalSettingsGitignore(repo, findings) {
       'Config',
       `${target} is not covered by .gitignore — local Claude settings/permissions can leak into commits`,
       target,
-    );
+    'APX-CFG-028');
   } else if (ignored === true) {
     findings.pass('Config', `${target} is gitignored (or would be)`, target);
   }
@@ -198,7 +198,7 @@ function checkSoftLayering(repo, findings) {
       'Config',
       `AGENTS.md is ${lines} lines while ${skillCount} skill package(s) exist — move on-demand workflows into skills so always-on instructions stay lean`,
       'AGENTS.md',
-    );
+    'APX-CFG-029');
   }
 }
 

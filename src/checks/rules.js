@@ -14,9 +14,9 @@ export function checkRules(repo, findings) {
 
   if (!agents) {
     if (adapters.length > 0) {
-      findings.fail('Rules', 'tool adapters are present but there is no AGENTS.md — no single source of truth');
+      findings.fail('Rules', 'tool adapters are present but there is no AGENTS.md — no single source of truth', null, 'APX-RUL-001');
     } else {
-      findings.warn('Rules', 'no AGENTS.md — project rules are undocumented');
+      findings.warn('Rules', 'no AGENTS.md — project rules are undocumented', null, 'APX-RUL-002');
     }
     // Progress-only repos can still get artifact hygiene without AGENTS.md.
     checkProtocolArtifacts(repo, null, findings);
@@ -28,14 +28,14 @@ export function checkRules(repo, findings) {
 
   if (PLACEHOLDER.test(content)) {
     const lines = lineNumbers(content, PLACEHOLDER);
-    findings.fail('Rules', `AGENTS.md still has {{PLACEHOLDER}} markers on line(s) ${lines}`, 'AGENTS.md');
+    findings.fail('Rules', `AGENTS.md still has {{PLACEHOLDER}} markers on line(s) ${lines}`, 'AGENTS.md', 'APX-RUL-003');
   }
   if (STUB.test(content)) {
     const lines = lineNumbers(content, STUB);
-    findings.warn('Rules', `AGENTS.md has unfilled template stubs ([…]) on line(s) ${lines}`, 'AGENTS.md');
+    findings.warn('Rules', `AGENTS.md has unfilled template stubs ([…]) on line(s) ${lines}`, 'AGENTS.md', 'APX-RUL-004');
   }
   if (content.trim().length < 80) {
-    findings.warn('Rules', 'AGENTS.md is nearly empty — add real project rules', 'AGENTS.md');
+    findings.warn('Rules', 'AGENTS.md is nearly empty — add real project rules', 'AGENTS.md', 'APX-RUL-005');
   }
 
   checkQuality(content, findings);
@@ -66,7 +66,7 @@ function checkCompleteness(content, findings) {
   if (!hasBoundaries) missing.push('boundaries/do-not-touch');
   if (!hasSensitive) missing.push('sensitive-data note');
   if (missing.length) {
-    findings.warn('Rules', `AGENTS.md is missing recommended section(s): ${missing.join('; ')}`, 'AGENTS.md');
+    findings.warn('Rules', `AGENTS.md is missing recommended section(s): ${missing.join('; ')}`, 'AGENTS.md', 'APX-RUL-006');
   }
 }
 
@@ -92,7 +92,7 @@ function checkLayoutPaths(repo, content, findings) {
       'Rules',
       `AGENTS.md layout paths not found in the repo: ${missing.join(', ')} — update the layout or restore the paths`,
       'AGENTS.md',
-    );
+    'APX-RUL-007');
   } else if (paths.length > 0) {
     findings.pass('Rules', 'AGENTS.md layout paths resolve on disk', 'AGENTS.md');
   }
@@ -164,7 +164,7 @@ function checkQuality(content, findings) {
       'Rules',
       `AGENTS.md is ${lines.length} lines — agent adherence drops past ~200; split into scoped rule files`,
       'AGENTS.md',
-    );
+    'APX-RUL-008');
   }
 
   // Empty sections: a leaf heading with no body before the next heading (or EOF) is dead weight.
@@ -183,7 +183,7 @@ function checkQuality(content, findings) {
     if (!hasBody && !hasChild) empties.push(`"${h.title}" (line ${h.i + 1})`);
   });
   if (empties.length) {
-    findings.warn('Rules', `AGENTS.md has empty section(s): ${empties.join(', ')} — fill or remove`, 'AGENTS.md');
+    findings.warn('Rules', `AGENTS.md has empty section(s): ${empties.join(', ')} — fill or remove`, 'AGENTS.md', 'APX-RUL-009');
   }
 }
 

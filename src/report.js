@@ -2,6 +2,7 @@
 // (findings + fix cards + judgement panel + copyable agent prompt). Machine JSON stays
 // on `check --json` / `check --sarif` only.
 import { CATEGORIES, FAIL, PASS, WARN } from './findings.js';
+import { RULES, helpUri } from './rules-registry.js';
 import { renderCheckedSummary } from './progress.js';
 import { remediationsFor } from './remediate.js';
 
@@ -127,7 +128,9 @@ function renderFindingLines(findings) {
 
 function renderSummary(findings) {
   const s = findings.summary();
-  return `  ${c('32', s.pass + ' passed')}   ${c('33', s.warn + ' warning(s)')}   ${c('31', s.fail + ' failure(s)')}`;
+  const line = `  ${c('32', s.pass + ' passed')}   ${c('33', s.warn + ' warning(s)')}   ${c('31', s.fail + ' failure(s)')}`;
+  // A baseline never disappears from the report: an accepted problem is still a problem.
+  return findings.suppressed ? `${line}   ${c('2', findings.suppressed + ' baselined')}` : line;
 }
 
 function renderStatusBanner(findings) {
@@ -303,7 +306,7 @@ function buildJudgementPrompt(findings) {
 }
 
 function renderPromptPanel(findings) {
-  // Plain text only  no box borders. ?/?/? chrome breaks copy-paste into agents.
+  // Plain text only: no box borders. Box-drawing chrome breaks copy-paste into agents.
   const promptRows = buildJudgementPrompt(findings);
   const lines = ['', rule('Agent prompt'), ''];
   lines.push(c('2', '  Copy the text below into your coding agent:'));
@@ -335,8 +338,9 @@ export function renderHuman(findings, repo) {
 }
 
 export function renderJson(findings, repo) {
+  const summary = { ...findings.summary(), suppressed: findings.suppressed || 0 };
   return JSON.stringify(
-    { repo, summary: findings.summary(), findings: findings.items },
+    { repo, summary, findings: findings.items },
     null,
     2,
   );
@@ -345,23 +349,44 @@ export function renderJson(findings, repo) {
 // SARIF 2.1.0 for GitHub code scanning. Passes are omitted; warn->warning, fail->error.
 const SARIF_LEVEL = { [FAIL]: 'error', [WARN]: 'warning' };
 export function renderSarif(findings, repo) {
+  // The full catalogue ships in every run, not just the rules that fired: code scanning needs a
+  // rule to exist to keep a dismissal attached to it when a later run stops reporting it.
+  const rules = RULES.map((r) => ({
+    id: r.id,
+    name: r.id,
+    shortDescription: { text: r.title },
+    helpUri: helpUri(r.id),
+    properties: { category: r.category },
+  }));
+  const indexOf = new Map(RULES.map((r, i) => [r.id, i]));
+
   const results = findings.items
     .filter((f) => f.severity !== PASS)
-    .map((f) => ({
-      ruleId: `agent-pipx/${f.category.toLowerCase()}`,
-      level: SARIF_LEVEL[f.severity],
-      message: { text: f.message },
-      locations: f.file
-        ? [{ physicalLocation: { artifactLocation: { uri: f.file } } }]
-        : [],
-    }));
+    .map((f) => {
+      const result = {
+        ruleId: f.id || `agent-pipx/${f.category.toLowerCase()}`,
+        level: SARIF_LEVEL[f.severity],
+        message: { text: f.message },
+        locations: f.file
+          ? [{ physicalLocation: { artifactLocation: { uri: f.file } } }]
+          : [],
+      };
+      if (indexOf.has(f.id)) result.ruleIndex = indexOf.get(f.id);
+      return result;
+    });
   return JSON.stringify(
     {
       version: '2.1.0',
       $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
       runs: [
         {
-          tool: { driver: { name: 'agent-pipx', informationUri: 'https://github.com/kyizinlatt/agent-pipx' } },
+          tool: {
+            driver: {
+              name: 'agent-pipx',
+              informationUri: 'https://github.com/kyizinlatt/agent-pipx',
+              rules,
+            },
+          },
           results,
         },
       ],
