@@ -1,0 +1,20 @@
+{
+  "name": "swiftui",
+  "description": "SwiftUI guards: print, try! and as! checks.",
+  "repository": "https://github.com/kyizinlatt/agent-pipx",
+  "license": "Apache-2.0",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-swift.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
