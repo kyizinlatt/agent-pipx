@@ -1,6 +1,6 @@
 {
   "name": "agent-pipx",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Audit a repo's AI-agent configuration — config, rules, styles, environment — against the AGENTS.md standard (Claude Code, Cursor, Gemini, Copilot, Codex, Kimi, Antigravity, Windsurf).",
   "keywords": [
     "agents.md",
