@@ -69,6 +69,28 @@ A project's committed `.claude/settings.json` references hooks by
   installer copies the harness in and writes a manifest recording which pack and version.
   `install-harness.sh <repo> --update` refreshes a vendored repo.
 
+## Plugin route (Claude Code plugins)
+
+`core`, `packs/web-ts` and `packs/swiftui` are also Claude Code plugin roots. Each
+`.claude-plugin/plugin.json` wires the same hooks as that root's `settings.json`, with
+`${CLAUDE_PLUGIN_ROOT}/hooks/…` in place of `$CLAUDE_PROJECT_DIR/.claude/hooks/…`, and
+`test/harness-plugin.test.js` fails if the two drift apart. A marketplace serves a root with a
+`git-subdir` source pinned to a commit:
+
+```json
+{ "name": "core",
+  "source": { "source": "git-subdir", "url": "https://github.com/kyizinlatt/agent-pipx.git",
+              "path": "claude-harness/core", "ref": "main", "sha": "<commit>" } }
+```
+
+- The manifests carry **no `version`**, so the pinned commit is the version. A fixed `version`
+  makes `claude plugin update` ignore a new `sha`.
+- Plugin commands are namespaced (`/core:ship`, `/core:handoff`), so they sit next to a repo's own
+  `.claude/commands` rather than replacing them.
+- A plugin cannot carry `permissions`. Keep the `settings.json` allow/deny lists in the repo.
+- Use one route per repo. If a repo still wires vendored hooks while the plugin is enabled, each
+  hook runs twice.
+
 ## Per-project flow
 
 ```

@@ -1,0 +1,32 @@
+{
+  "name": "web-ts",
+  "description": "TypeScript and web guards: forbidden patterns and protected files.",
+  "repository": "https://github.com/kyizinlatt/agent-pipx",
+  "license": "Apache-2.0",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-write.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-forbidden.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
